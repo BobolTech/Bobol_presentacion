@@ -425,15 +425,54 @@
             showScreen(currentScreen);
         }
 
-        // Matrix-style Canvas Background Animations
-        function initMatrixCanvas(canvasId, charSet, colorFn) {
+        // --- 1. Pantalla 1: Emoticones flotantes apareciendo y desapareciendo en diferentes tamaños ---
+        function initFloatingEmojisCanvas(canvasId, emojis) {
             const canvas = document.getElementById(canvasId);
             const ctx = canvas.getContext('2d');
+            function resize() { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; }
+            resize();
+            window.addEventListener('resize', resize);
 
-            function resize() {
-                canvas.width = canvas.parentElement.clientWidth;
-                canvas.height = canvas.parentElement.clientHeight;
+            const items = Array.from({ length: 22 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 28 + 14,
+                char: emojis[Math.floor(Math.random() * emojis.length)],
+                opacity: Math.random(),
+                speed: Math.random() * 0.02 + 0.008,
+                growing: Math.random() > 0.5
+            }));
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                items.forEach(item => {
+                    if (item.growing) {
+                        item.opacity += item.speed;
+                        if (item.opacity >= 1) item.growing = false;
+                    } else {
+                        item.opacity -= item.speed;
+                        if (item.opacity <= 0) {
+                            item.growing = true;
+                            item.x = Math.random() * canvas.width;
+                            item.y = Math.random() * canvas.height;
+                            item.size = Math.random() * 28 + 14;
+                            item.char = emojis[Math.floor(Math.random() * emojis.length)];
+                        }
+                    }
+                    ctx.globalAlpha = item.opacity;
+                    ctx.font = `${item.size}px sans-serif`;
+                    ctx.fillText(item.char, item.x, item.y);
+                });
+                requestAnimationFrame(draw);
             }
+            draw();
+        }
+
+        // --- 2. Pantalla 2: Matrix Clásica con caracteres cirílicos (rusos) ---
+        function initMatrixCanvas(canvasId, charSet, colorHex) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            function resize() { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; }
             resize();
             window.addEventListener('resize', resize);
 
@@ -442,33 +481,165 @@
             let drops = Array(columns).fill(1);
 
             function draw() {
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.15)';
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.18)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                ctx.fillStyle = colorFn();
+                ctx.fillStyle = colorHex;
                 ctx.font = `${fontSize}px monospace`;
 
                 for (let i = 0; i < drops.length; i++) {
                     const text = charSet[Math.floor(Math.random() * charSet.length)];
                     ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
                     if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
                         drops[i] = 0;
                     }
                     drops[i]++;
                 }
             }
-
             setInterval(draw, 35);
         }
 
-        // Initialize unique Matrix backgrounds for each screen on load
+        // --- 3. Pantalla 3: Hojas secas/estacionales cayendo y meciéndose en diferentes tamaños ---
+        function initFallingLeavesCanvas(canvasId, leafTypes) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            function resize() { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const leaves = Array.from({ length: 25 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height - canvas.height,
+                size: Math.random() * 22 + 12,
+                char: leafTypes[Math.floor(Math.random() * leafTypes.length)],
+                speedY: Math.random() * 1.5 + 0.8,
+                speedX: Math.random() * 1 - 0.5,
+                angle: Math.random() * Math.PI * 2,
+                spin: Math.random() * 0.03 - 0.015
+            }));
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                leaves.forEach(leaf => {
+                    leaf.y += leaf.speedY;
+                    leaf.x += Math.sin(leaf.angle) * 0.8;
+                    leaf.angle += 0.02;
+                    leaf.angle += leaf.spin;
+
+                    if (leaf.y > canvas.height + 30) {
+                        leaf.y = -20;
+                        leaf.x = Math.random() * canvas.width;
+                    }
+
+                    ctx.save();
+                    ctx.translate(leaf.x, leaf.y);
+                    ctx.rotate(leaf.angle);
+                    ctx.font = `${leaf.size}px sans-serif`;
+                    ctx.fillText(leaf.char, 0, 0);
+                    ctx.restore();
+                });
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
+
+        // --- 4. Pantalla 4: Llenado progresivo de pantalla (acumulación de ítems) ---
+        function initAccumulatingCanvas(canvasId, items) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            function resize() { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; }
+            resize();
+            window.addEventListener('resize', resize);
+
+            let grid = [];
+            const itemSize = 22;
+
+            function spawnItem() {
+                const cols = Math.floor(canvas.width / itemSize);
+                const col = Math.floor(Math.random() * cols);
+                const char = items[Math.floor(Math.random() * items.length)];
+                return { x: col * itemSize, y: 0, char: char, targetY: canvas.height - itemSize, active: true };
+            }
+
+            let activeItem = spawnItem();
+
+            function draw() {
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                grid.forEach(g => {
+                    ctx.font = `${itemSize - 4}px sans-serif`;
+                    ctx.fillText(g.char, g.x, g.y);
+                });
+
+                if (activeItem) {
+                    activeItem.y += 6;
+                    const hit = grid.find(g => g.x === activeItem.x && activeItem.y + itemSize >= g.y);
+                    if (hit || activeItem.y >= canvas.height - itemSize) {
+                        activeItem.y = hit ? hit.y - itemSize : canvas.height - itemSize;
+                        grid.push({ x: activeItem.x, y: activeItem.y, char: activeItem.char });
+                        
+                        if (grid.length > 80) grid.splice(0, 20);
+                        activeItem = spawnItem();
+                    } else {
+                        ctx.font = `${itemSize - 4}px sans-serif`;
+                        ctx.fillText(activeItem.char, activeItem.x, activeItem.y);
+                    }
+                }
+            }
+            setInterval(draw, 40);
+        }
+
+        // --- 5. Pantalla 5: Explosión de Partículas Estelares (Crecimiento y Éxito) ---
+        function initStarburstCanvas(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            function resize() { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const stars = Array.from({ length: 45 }, () => ({
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                size: Math.random() * 3 + 1,
+                color: `hsl(${Math.random() * 60 + 330}, 100%, 70%)`
+            }));
+
+            function draw() {
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.25)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                stars.forEach(star => {
+                    star.x += star.vx;
+                    star.y += star.vy;
+                    star.size += 0.02;
+
+                    if (star.x < 0 || star.x > canvas.width || star.y < 0 || star.y > canvas.height) {
+                        star.x = canvas.width / 2;
+                        star.y = canvas.height / 2;
+                        star.vx = (Math.random() - 0.5) * 4;
+                        star.vy = (Math.random() - 0.5) * 4;
+                        star.size = Math.random() * 2 + 1;
+                    }
+
+                    ctx.fillStyle = star.color;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
+
+        // --- Inicialización de los 5 efectos personalizados al cargar ---
         window.addEventListener('load', () => {
-            initMatrixCanvas('canvas-1', ['🍔', '🌮', '📦', '🛠️', '🚗', '🥗', '⚡', '☕'], () => '#10b981');
-            initMatrixCanvas('canvas-2', ['Ж', 'Б', 'か', 'ぬ', 'Л', 'ゆ', 'ミ', 'Д', 'ふ', 'Я'], () => '#06b6d4');
-            initMatrixCanvas('canvas-3', ['🌸', '❄️', '⭐', '❤️', '🎨', '📷', '✨', '🌿', '🎁'], () => '#d946ef');
-            initMatrixCanvas('canvas-4', ['📱', '💬', '🛵', '💵', '💳', '📍', '✅', '📦', '🕒'], () => '#f59e0b');
-            initMatrixCanvas('canvas-5', ['🚀', '🔥', '⭐', '💼', '🌟', '🎯', '💡', '🏆', '💎'], () => '#fb7185');
+            initFloatingEmojisCanvas('canvas-1', ['🍔', '🌮', '📦', '🛠️', '🚗', '🥗', '⚡', '☕', '💡']);
+            initMatrixCanvas('canvas-2', ['ゆ', 'Б', 'か', 'ふ', 'Л', 'ミ', 'ぬ', 'Д', 'Ф', 'Я'], '#06b6d4');
+            initFallingLeavesCanvas('canvas-3', ['🍂', '🍁', '🍃', '🌸', '🌿']);
+            initAccumulatingCanvas('canvas-4', ['📱', '🛵', '💵', '💳', '📦', '✅']);
+            initStarburstCanvas('canvas-5');
         });
     </script>
 </body>
