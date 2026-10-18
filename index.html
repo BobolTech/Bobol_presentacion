@@ -621,7 +621,7 @@
             function r() { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; }
             r(); window.addEventListener('resize', r);
             
-            const hearts = ['❤️', '🤎', '🤍', '💛', '🖤', '💜', '💙', '💚', '🧡'];
+            const hearts = ['❤️', '🤍', '💛', '💜', '💙', '💚'];
             const stars = Array.from({ length: 25 }, () => ({ 
                 x: canvas.width / 2, y: canvas.height / 2, 
                 vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3, 
